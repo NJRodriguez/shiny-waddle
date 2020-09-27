@@ -14,6 +14,7 @@ type documents struct {
 
 var newAwsSession = session.NewSession
 
+// New creates a new Documents client for interacting with AWS DynamoDB.
 func New(table string, awsRegion string) (*documents, error) {
 	session, err := newAwsSession(&aws.Config{Region: aws.String(awsRegion)})
 	if err != nil {
