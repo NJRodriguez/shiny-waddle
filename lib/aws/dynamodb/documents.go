@@ -1,6 +1,8 @@
 package dynamodb
 
 import (
+	"log"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
@@ -31,12 +33,15 @@ func New(table string, awsRegion string) (*documents, error) {
 }
 
 func (instance *documents) Get(key map[string]*dynamodb.AttributeValue) (*dynamodb.GetItemOutput, error) {
+	log.Printf("Checking table: %s", instance.table)
 	args := &dynamodb.GetItemInput{
 		TableName: aws.String(instance.table),
 		Key:       key,
 	}
 	item, err := instance.awsDynamodbClient.GetItem(args)
 	if err != nil {
+		log.Fatal("Failed to obtain item from table.")
+		log.Fatal(err)
 		return nil, err
 	}
 	return item, nil
