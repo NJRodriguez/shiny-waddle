@@ -7,6 +7,12 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 )
 
+//go:generate mockery --name DocumentsClient
+type DocumentsClient interface {
+	Get(key map[string]*dynamodb.AttributeValue) (*dynamodb.GetItemOutput, error)
+	Create(item map[string]*dynamodb.AttributeValue) (*dynamodb.PutItemOutput, error)
+}
+
 type documents struct {
 	awsDynamodbClient dynamodbiface.DynamoDBAPI
 	table             string
