@@ -46,7 +46,7 @@ func (instance *documents) Get(document interface{}) (*dynamodb.GetItemOutput, e
 	doc, err := instance.awsDynamodbClient.GetItem(args)
 	if err != nil {
 		log.Println("Failed to obtain item from table.")
-		return nil, errors.Wrap(err, "get item fail")
+		return nil, err
 	}
 	return doc, nil
 }
@@ -64,7 +64,7 @@ func (instance *documents) Create(document interface{}) (*dynamodb.PutItemOutput
 	}
 	result, err := instance.awsDynamodbClient.PutItem(args)
 	if err != nil {
-		return nil, errors.Wrap(err, "put item fail")
+		return nil, err
 	}
 	return result, err
 }
