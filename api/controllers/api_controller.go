@@ -28,6 +28,8 @@ var (
 const (
 	internalServerError = "Internal server error"
 	idExistsError       = "Id already exists in database"
+	idNotFoundError     = "Id not found in database"
+	invalidRequestBody  = "Failed to parse the request body"
 )
 
 type APIController struct {
@@ -70,14 +72,14 @@ func (instance *APIController) CreateSucursal(writer http.ResponseWriter, r *htt
 	if err != nil {
 		log.Printf("Error when trying to read request body: %s", err)
 		writer.WriteHeader(http.StatusBadRequest)
-		generateErrorMessage(writer, &responses.ErrorMsg{Message: internalServerError})
+		generateErrorMessage(writer, &responses.ErrorMsg{Message: invalidRequestBody})
 		return
 	}
 	valErrs, err := ValidateRequest(body, &requests.PostSucursal{})
 	if err != nil {
 		log.Printf("Error when trying to validate requests: %s", err)
 		writer.WriteHeader(http.StatusBadRequest)
-		generateErrorMessage(writer, &responses.ErrorMsg{Message: internalServerError})
+		generateErrorMessage(writer, &responses.ErrorMsg{Message: invalidRequestBody})
 		return
 	}
 	if valErrs != nil {
@@ -124,6 +126,12 @@ func (instance *APIController) GetSucursal(writer http.ResponseWriter, r *http.R
 		log.Println("Error when trying to get Sucursal from db.")
 		writer.WriteHeader(http.StatusBadRequest)
 		generateErrorMessage(writer, &responses.ErrorMsg{Message: internalServerError})
+		return
+	}
+	if result.Item == nil {
+		log.Println("Sucursal does not exist in db.")
+		writer.WriteHeader(http.StatusBadRequest)
+		generateErrorMessage(writer, &responses.ErrorMsg{Message: idNotFoundError})
 		return
 	}
 	sucursal := models.Sucursal{}
