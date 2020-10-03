@@ -8,11 +8,12 @@ import (
 	ut "github.com/go-playground/universal-translator"
 	validator "github.com/go-playground/validator/v10"
 	en_translations "github.com/go-playground/validator/v10/translations/en"
+	"github.com/pkg/errors"
 )
 
 type ApiError struct {
 	Message string   `json:"message"`
-	Errors  []string `json:"errors"`
+	Errors  []string `json:"errors,omitempty"`
 }
 
 func RegisterErrors(instance *validator.Validate) (ut.Translator, error) {
@@ -29,7 +30,7 @@ func RegisterErrors(instance *validator.Validate) (ut.Translator, error) {
 
 	if err := en_translations.RegisterDefaultTranslations(instance, trans); err != nil {
 		log.Println(err)
-		return nil, err
+		return nil, errors.Wrap(err, "register default translations error")
 	}
 
 	_ = instance.RegisterTranslation("required", trans, func(ut ut.Translator) error {
@@ -53,7 +54,7 @@ func ValidateRequest(body []byte, obj interface{}) (*ApiError, error) {
 	err := json.Unmarshal(body, obj)
 	if err != nil {
 		log.Println("Error when trying to unmarshal request body.")
-		return nil, err
+		return nil, errors.Wrap(err, "validate request error")
 	}
 	valErrs := validate.Struct(obj)
 	if valErrs != nil {
