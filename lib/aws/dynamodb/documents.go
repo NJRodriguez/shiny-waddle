@@ -6,13 +6,15 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
+	"github.com/pkg/errors"
 )
 
 //go:generate mockery --name DocumentsClient
 type DocumentsClient interface {
-	Get(key map[string]*dynamodb.AttributeValue) (*dynamodb.GetItemOutput, error)
-	Create(item map[string]*dynamodb.AttributeValue) (*dynamodb.PutItemOutput, error)
+	Get(key interface{}) (*dynamodb.GetItemOutput, error)
+	Create(item interface{}) (*dynamodb.PutItemOutput, error)
 }
 
 type documents struct {
@@ -26,35 +28,43 @@ var newAwsSession = session.NewSession
 func New(table string, awsRegion string) (*documents, error) {
 	session, err := newAwsSession(&aws.Config{Region: aws.String(awsRegion)})
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "starting new aws sessions")
 	}
 	service := dynamodb.New(session)
 	return &documents{service, table}, nil
 }
 
-func (instance *documents) Get(key map[string]*dynamodb.AttributeValue) (*dynamodb.GetItemOutput, error) {
-	log.Printf("Checking table: %s", instance.table)
+func (instance *documents) Get(document interface{}) (*dynamodb.GetItemOutput, error) {
+	item, err := dynamodbattribute.MarshalMap(document)
+	if err != nil {
+		return nil, errors.Wrap(err, "marshalling interface to dynamodb readable")
+	}
 	args := &dynamodb.GetItemInput{
 		TableName: aws.String(instance.table),
-		Key:       key,
+		Key:       item,
 	}
-	item, err := instance.awsDynamodbClient.GetItem(args)
+	doc, err := instance.awsDynamodbClient.GetItem(args)
 	if err != nil {
-		log.Fatal("Failed to obtain item from table.")
-		log.Fatal(err)
-		return nil, err
+		log.Println("Failed to obtain item from table.")
+		return nil, errors.Wrap(err, "get item fail")
 	}
-	return item, nil
+	return doc, nil
 }
 
-func (instance *documents) Create(item map[string]*dynamodb.AttributeValue) (*dynamodb.PutItemOutput, error) {
+func (instance *documents) Create(document interface{}) (*dynamodb.PutItemOutput, error) {
+	item, err := dynamodbattribute.MarshalMap(document)
+	if err != nil {
+		return nil, errors.Wrap(err, "marshalling interface to dynamodb readable")
+	}
+	condition := "attribute_not_exists(id)"
 	args := &dynamodb.PutItemInput{
-		TableName: aws.String(instance.table),
-		Item:      item,
+		TableName:           aws.String(instance.table),
+		ConditionExpression: &condition,
+		Item:                item,
 	}
 	result, err := instance.awsDynamodbClient.PutItem(args)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "put item fail")
 	}
 	return result, err
 }
