@@ -8,6 +8,7 @@ require (
 	github.com/go-playground/universal-translator v0.17.0
 	github.com/go-playground/validator/v10 v10.4.0
 	github.com/gorilla/mux v1.8.0
+	github.com/pkg/errors v0.9.1
 	github.com/pulumi/pulumi-aws/sdk/v3 v3.5.0
 	github.com/pulumi/pulumi/sdk/v2 v2.10.2
 )

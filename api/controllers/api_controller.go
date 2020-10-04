@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
+	"math"
 	"net/http"
+	"strconv"
 
 	"github.com/NJRodriguez/shiny-waddle/api/controllers/payloads/requests"
 	"github.com/NJRodriguez/shiny-waddle/api/controllers/payloads/responses"
@@ -26,10 +28,15 @@ var (
 )
 
 const (
-	internalServerError = "Internal server error"
-	idExistsError       = "Id already exists in database"
-	idNotFoundError     = "Id not found in database"
-	invalidRequestBody  = "Failed to parse the request body"
+	internalServerError     = "Internal server error"
+	idExistsError           = "Id already exists in database"
+	idNotFoundError         = "Id not found in database"
+	sucursalesNotFoundError = "No sucursales were found. Please load sucursales onto database"
+	invalidRequestBody      = "Failed to parse the request body"
+	invalidLatitude         = "Latitude must be in float64 format"
+	invalidLongitude        = "Longitude must be in float64 format"
+	invalidLatitudeVal      = "Latitude must be between -90 and 90"
+	invalidLongitudeVal     = "Longitude must be between -180 and 180"
 )
 
 type APIController struct {
@@ -146,7 +153,49 @@ func (instance *APIController) GetSucursal(writer http.ResponseWriter, r *http.R
 }
 
 func (instance *APIController) GetClosestSucursal(writer http.ResponseWriter, r *http.Request) {
-	_ = json.NewEncoder(writer).Encode("Get closest sucursal not implemented yet!")
+	setJSONContentType(writer)
+	pathVars := mux.Vars(r)
+	lat := pathVars["lat"]
+	lon := pathVars["lon"]
+	position, err := validateLatLon(lat, lon)
+	if err != nil {
+		log.Println("Error when validating latitude/longitude")
+		writer.WriteHeader(http.StatusBadRequest)
+		generateErrorMessage(writer, &responses.ErrorMsg{Message: err.Error()})
+		return
+	}
+	result, err := instance.documentsClient.ListAll()
+	if err != nil {
+		log.Println("Error when trying to list all items from dynamodb table.")
+		writer.WriteHeader(http.StatusBadRequest)
+		generateErrorMessage(writer, &responses.ErrorMsg{Message: internalServerError})
+		return
+	}
+	if len(result) == 0 {
+		log.Println("No sucursales are loaded in database!")
+		writer.WriteHeader(http.StatusBadRequest)
+		generateErrorMessage(writer, &responses.ErrorMsg{Message: sucursalesNotFoundError})
+		return
+	}
+	sucursales, err := models.ToSucursalArray(result)
+	if err != nil {
+		log.Println("Error when trying to convert dynamodb result to sucursales array.")
+		writer.WriteHeader(http.StatusBadRequest)
+		generateErrorMessage(writer, &responses.ErrorMsg{Message: internalServerError})
+		return
+	}
+	closestSucursal := &models.SucursalWithDistance{}
+	for _, sucursal := range sucursales {
+		distance := calcDistance(position, sucursal)
+		if closestSucursal.Sucursal == nil {
+			closestSucursal = &models.SucursalWithDistance{Sucursal: sucursal, Distance: distance}
+		}
+		if distance < closestSucursal.Distance {
+			closestSucursal.Sucursal = sucursal
+			closestSucursal.Distance = distance
+		}
+	}
+	_ = json.NewEncoder(writer).Encode(&responses.ClosestSucursalResponse{Sucursal: *closestSucursal.Sucursal, DistanceInKm: closestSucursal.Distance})
 }
 
 func generateErrorMessage(writer http.ResponseWriter, msg *responses.ErrorMsg) {
@@ -166,4 +215,45 @@ func deserializePostSucursalRequest(request []byte) (*requests.PostSucursal, err
 		return nil, errors.Wrap(err, "deserializing post sucursal request")
 	}
 	return &postRequest, nil
+}
+
+func validateLatLon(lat string, lon string) (*models.Position, error) {
+	latFloat, err := strconv.ParseFloat(lat, 64)
+	if err != nil {
+		return nil, errors.New(invalidLatitude)
+	}
+	if latFloat > 90 || latFloat < -90 {
+		return nil, errors.New(invalidLatitudeVal)
+	}
+	lonFloat, err := strconv.ParseFloat(lon, 64)
+	if err != nil {
+		return nil, errors.New(invalidLongitude)
+	}
+	if lonFloat > 180 || lonFloat < -180 {
+		return nil, errors.New(invalidLongitudeVal)
+	}
+	return &models.Position{Latitude: latFloat, Longitude: lonFloat}, nil
+}
+
+func calcDistance(position *models.Position, sucursal *models.Sucursal) float64 {
+	const PI float64 = 3.141592653589793
+
+	radlat1 := float64(PI * position.Latitude / 180)
+	radlat2 := float64(PI * sucursal.Latitude / 180)
+
+	theta := float64(position.Longitude - sucursal.Longitude)
+	radtheta := float64(PI * theta / 180)
+
+	dist := math.Sin(radlat1)*math.Sin(radlat2) + math.Cos(radlat1)*math.Cos(radlat2)*math.Cos(radtheta)
+
+	if dist > 1 {
+		dist = 1
+	}
+
+	dist = math.Acos(dist)
+	dist = dist * 180 / PI
+	dist = dist * 60 * 1.1515
+	dist = dist * 1.609344
+
+	return dist
 }

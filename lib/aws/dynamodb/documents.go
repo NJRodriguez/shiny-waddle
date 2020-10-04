@@ -15,6 +15,8 @@ import (
 type DocumentsClient interface {
 	Get(key interface{}) (*dynamodb.GetItemOutput, error)
 	Create(item interface{}) (*dynamodb.PutItemOutput, error)
+	List(exclusiveStartKey map[string]*dynamodb.AttributeValue, limit int64) (*dynamodb.ScanOutput, error)
+	ListAll() ([]map[string]*dynamodb.AttributeValue, error)
 }
 
 type documents struct {
@@ -67,4 +69,34 @@ func (instance *documents) Create(document interface{}) (*dynamodb.PutItemOutput
 		return nil, err
 	}
 	return result, err
+}
+
+func (instance *documents) List(exclusiveStartKey map[string]*dynamodb.AttributeValue, limit int64) (*dynamodb.ScanOutput, error) {
+	result, err := instance.awsDynamodbClient.Scan(&dynamodb.ScanInput{
+		TableName:         aws.String(instance.table),
+		Limit:             aws.Int64(limit),
+		ExclusiveStartKey: exclusiveStartKey,
+	})
+	if err != nil {
+		log.Println("Failed to list items from table")
+		return nil, err
+	}
+	return result, nil
+}
+
+func (instance *documents) ListAll() ([]map[string]*dynamodb.AttributeValue, error) {
+	result := []map[string]*dynamodb.AttributeValue{}
+	lastEvaluatedKey := map[string]*dynamodb.AttributeValue{}
+	for ok := true; ok; ok = !(lastEvaluatedKey == nil) {
+		if len(lastEvaluatedKey) == 0 {
+			lastEvaluatedKey = nil
+		}
+		response, err := instance.List(lastEvaluatedKey, 10) // 10 is an arbitrary number. Considering the project scale, this can be modified in the future.
+		if err != nil {
+			return nil, errors.Wrap(err, "list items from dynamodb error")
+		}
+		result = append(result, response.Items...)
+		lastEvaluatedKey = response.LastEvaluatedKey
+	}
+	return result, nil
 }
