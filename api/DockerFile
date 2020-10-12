@@ -1,0 +1,9 @@
+FROM golang:1.14-alpine
+
+COPY main /app/
+
+WORKDIR /app
+
+EXPOSE 80
+
+CMD ["./main"]
