@@ -92,6 +92,17 @@ Web service is deployed to `0.0.0.0:80`. The following are the endpoints availab
 ### /sucursal POST
 Will create a new Sucursal in the database.
 
+```
++-----------+---------+-------------------------------------+--------------------------------------+
+| Property  |  Type   |             Description             |               Example                |
++-----------+---------+-------------------------------------+--------------------------------------+
+| ID        | UUID    | Unique identifier for this Sucursal | b309060a-ce7b-4649-abc1-4cf3f6e51d1b |
+| Address   | String  | Physical address of the Sucursal    | 123 Fake St.                         |
+| Latitude  | Float64 | Precise latitude of Sucursal        | -34.604258                           |
+| Longitude | Float64 | Precise longitude of Sucursal       | -58.375094                           |
++-----------+---------+-------------------------------------+--------------------------------------+
+```
+
 #### Example request
 
 ```JSON
@@ -115,6 +126,14 @@ Will create a new Sucursal in the database.
 ### /sucursal/{id} GET
 Will retrieve the sucursal ID from the database.
 
+```
++----------+-------+--------------------------------------+
+| Property | Type  |               Example                |
++----------+-------+--------------------------------------+
+| ID       | UUID  | b309060a-ce7b-4649-abc1-4cf3f6e51d1b |
++----------+-------+--------------------------------------+
+```
+
 #### Example request
 ```HTTP
 http://0.0.0.0:80/sucursal/b309060a-ce7b-4649-abc1-4cf3f6e51d1b
@@ -131,6 +150,15 @@ http://0.0.0.0:80/sucursal/b309060a-ce7b-4649-abc1-4cf3f6e51d1b
 ```
 ### /sucursal/{lat}/{lon} GET
 Will retrieve the closest sucursal based on the latitude and longitude path arguments.
+
+```
++-----------+---------+-------------+----------+
+| Property  |  Type   | Description | Example  |
++-----------+---------+-------------+----------+
+| Latitude  | float64 | -90 ~ 90    |  58.2314 |
+| Longitude | float64 | -120 ~ 120  | 102.3644 |
++-----------+---------+-------------+----------+
+```
 
 #### Example request
 ```HTTP
