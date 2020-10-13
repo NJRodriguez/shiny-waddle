@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/NJRodriguez/shiny-waddle/api/controllers"
+	"github.com/NJRodriguez/shiny-waddle/lib/aws/dynamodb"
 	"github.com/gorilla/mux"
 )
 
@@ -13,12 +14,13 @@ type Server struct {
 }
 
 func (server *Server) Initialize(tableName string, region string) error {
-	args := &controllers.APIControllerArgs{
-		TableName: tableName,
-		Region:    region,
-	}
 	log.Println("Starting API Controller...")
-	apiController, err := controllers.NewAPIController(args)
+	client, err := dynamodb.New(tableName, region)
+	if err != nil {
+		log.Fatalln("Error when trying to start DynamoDB Client.")
+		return err
+	}
+	apiController, err := controllers.NewAPIController(client)
 	if err != nil {
 		log.Fatal("Error when trying to start API Controller!")
 		return err

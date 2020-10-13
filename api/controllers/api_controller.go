@@ -48,20 +48,16 @@ type APIControllerArgs struct {
 	Region    string
 }
 
-func NewAPIController(args *APIControllerArgs) (*APIController, error) {
-	client, err := dynamodb.New(args.TableName, args.Region)
-	if err != nil {
-		log.Fatalln("Error when trying to start DynamoDB Client.")
-		return nil, err
-	}
+func NewAPIController(documentsClient dynamodb.DocumentsClient) (*APIController, error) {
 	validate = validator.New()
-	translator, err = RegisterErrors(validate)
+	generatedTranslator, err := RegisterErrors(validate)
 	if err != nil {
 		log.Fatalln("Error when trying to register api errors.")
 		return nil, err
 	}
+	translator = generatedTranslator
 	return &APIController{
-		documentsClient: client,
+		documentsClient,
 	}, nil
 }
 
